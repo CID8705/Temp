@@ -1,13 +1,13 @@
 #include <algorithm>
+#include <climits>
 #include <iostream>
 #include <map>
 #include <set>
-#include <string>
 #include <vector>
 class R {
 public:
 	std::string id;
-	int length;
+	uint32_t length;
 	bool flag;
 };
 std::istream &operator>>(std::istream &in, R &r) {
@@ -24,24 +24,14 @@ std::istream &operator>>(std::istream &in, C &c) {
 	in >> c.id >> c.r_in >> c.r_out;
 	return in;
 }
-class P {
+class PD {
 public:
 	std::string id;
 	std::string r;
-	int dist;
+	uint32_t dist;
 };
-std::istream &operator>>(std::istream &in, P &p) {
-	in >> p.id >> p.r >> p.dist;
-	return in;
-}
-class D {
-public:
-	std::string id;
-	std::string r;
-	int dist;
-};
-std::istream &operator>>(std::istream &in, D &d) {
-	in >> d.id >> d.r >> d.dist;
+std::istream &operator>>(std::istream &in, PD &pd) {
+	in >> pd.id >> pd.r >> pd.dist;
 	return in;
 }
 class Q {
@@ -57,16 +47,16 @@ std::istream &operator>>(std::istream &in, Q &q) {
 class Info {
 public:
 	std::string id;
-	int dist;
+	uint32_t dist;
 };
 class Search {
 private:
-	std::map<std::pair<std::string, std::string>, int> dist;
+	std::map<std::pair<std::string, std::string>, uint32_t> dist;
 public:
 	std::vector<R> rs;
 	std::vector<C> cs;
-	std::vector<P> ps;
-	std::vector<D> ds;
+	std::vector<PD> ps;
+	std::vector<PD> ds;
 	std::vector<Q> qs;
 	std::vector<std::string> get_all() {
 		std::vector<std::string> all;
@@ -78,7 +68,7 @@ public:
 		std::copy(tmp.cbegin(), tmp.cend(), all.begin());
 		return all;
 	}
-	int get_length(std::pair<std::string, std::string> key) {
+	uint32_t get_length(std::pair<std::string, std::string> key) {
 		std::vector<C> cs_in, cs_out;
 		std::copy_if(this->cs.cbegin(), this->cs.cend(), std::back_inserter(cs_in), [&](const C &c) {
 			return c.id == key.first ? true : false;
@@ -97,12 +87,12 @@ public:
 				})->length;
 			}
 		}
-		return INT_MAX;
+		return UINT_MAX;
 	}
 	void make_graph() {
 		const std::vector<std::string> all = get_all(); 
-		for (int i = 0; i < all.size(); ++i) {
-			for (int j = 0; j < all.size(); ++j) {
+		for (size_t i = 0; i < all.size(); ++i) {
+			for (size_t j = 0; j < all.size(); ++j) {
 				if (i == j) {
 					dist.emplace(std::make_pair(all.at(i), all.at(j)), 0);
 				}
@@ -112,22 +102,22 @@ public:
 				}
 			}
 		}
-		for(int k = 0; k < all.size(); ++k) {
-			for(int i = 0; i < all.size(); ++i) {
-				for(int j = 0; j < all.size(); ++j) {
-					int dist_ik = dist.at(std::make_pair(all.at(i), all.at(k)));
-					int dist_kj = dist.at(std::make_pair(all.at(k), all.at(j)));
-					if (dist_ik < INT_MAX && dist_kj < INT_MAX) {
+		for(size_t k = 0; k < all.size(); ++k) {
+			for(size_t i = 0; i < all.size(); ++i) {
+				for(size_t j = 0; j < all.size(); ++j) {
+					uint32_t dist_ik = dist.at(std::make_pair(all.at(i), all.at(k)));
+					uint32_t dist_kj = dist.at(std::make_pair(all.at(k), all.at(j)));
+					if (dist_ik < UINT_MAX && dist_kj < UINT_MAX) {
 						dist.at(std::make_pair(all.at(i), all.at(j))) = std::min(dist.at(std::make_pair(all.at(i), all.at(j))), dist_ik + dist_kj);
 					}
 				}
 			}
 		}
 	}
-	std::vector<Info> get_nearest(const std::string &id, const int &flag) {
+	std::vector<Info> get_nearest(const std::string &id, const int32_t &flag) {
 		std::vector<Info> nearest;
 		if (id.front() == 'D') {
-			const std::vector<D>::const_iterator x = find_if(this->ds.cbegin(), this->ds.cend(), [&](const D &d) {
+			const std::vector<PD>::const_iterator x = find_if(this->ds.cbegin(), this->ds.cend(), [&](const PD &d) {
 				return d.id == id ? true : false;
 			});
 			const std::vector<C>::const_iterator c_in = find_if(cs.cbegin(), cs.cend(), [&](const C &c) {
@@ -161,7 +151,7 @@ public:
 			nearest.emplace_back(info);
 		}
 		else {
-			const std::vector<P>::const_iterator x = find_if(this->ps.cbegin(), this->ps.cend(), [&](const P &p) {
+			const std::vector<PD>::const_iterator x = find_if(this->ps.cbegin(), this->ps.cend(), [&](const PD &p) {
 				return p.id == id ? true : false;
 			});
 			if (flag <= 0) {
@@ -201,43 +191,75 @@ public:
 		}
 		return nearest;
 	}
-	int search(const Q &q) {
-		int min = INT_MAX;
-		const std::vector<Info> ss = this->get_nearest(q.x, q.type ? 0 : -1);
-		const std::vector<Info> es = this->get_nearest(q.y, q.type ? 0 : 1);
+	uint32_t get_distance(const std::string &x_id, const std::string &y_id) {
+		std::vector<PD>::const_iterator x = x_id.front() == 'D' ? find_if(this->ds.cbegin(), this->ds.cend(), [&](const PD &d) {
+				return d.id == x_id ? true : false;
+			}) : find_if(this->ps.cbegin(), this->ps.cend(), [&](const PD &p) {
+				return p.id == x_id ? true : false;
+			});
+		std::vector<PD>::const_iterator y = y_id.front() == 'D' ? find_if(this->ds.cbegin(), this->ds.cend(), [&](const PD &d) {
+				return d.id == y_id ? true : false;
+			}) : find_if(this->ps.cbegin(), this->ps.cend(), [&](const PD &p) {
+				return p.id == y_id ? true : false;
+			});
+		if (x->r == y->r) {
+			if (x_id.front() == 'D') {
+				if (x->dist <= y->dist) {
+					return y->dist - x->dist;
+				}
+				else {
+					return x->dist - y->dist;
+				}
+			}
+			else {
+				const std::string x_dir = x->r.substr(x->r.size() - 2);
+				const std::string y_dir = y->r.substr(y->r.size() - 2);
+				if (x_dir == "SE" && y_dir == "SE" && x->dist <= y->dist) {
+					return y->dist - x->dist;
+				}
+				else if (x_dir == "ES" && y_dir == "ES" && x->dist >= y->dist) {
+					return x->dist - y->dist;
+				}
+			}
+		}
+		return UINT_MAX;
+	}
+	uint32_t search(const Q &q) {
+		std::vector<Info> ss = this->get_nearest(q.x, q.type ? 0 : -1);
+		std::vector<Info> es = this->get_nearest(q.y, q.type ? 0 : 1);
+		uint32_t min = this->get_distance(q.x, q.y);
 		for (const Info &s : ss) {
 			for (const Info &e : es) {
-				int tmp = s.dist + this->dist.at(std::make_pair(s.id, e.id)) + e.dist;
-				std::cout << s.id << " + " << this->dist.at(std::make_pair(s.id, e.id)) << " + " << e.id << std::endl;
+				uint32_t tmp = s.dist + this->dist.at(std::make_pair(s.id, e.id)) + e.dist;
 				if (tmp < min) {
 					min = tmp;
 				}
 			}
 		}
-		return min < INT_MAX ? min : -1;
+		return min < UINT_MAX ? min : -1;
 	}
 };
 std::istream &operator>>(std::istream &in, Search &s) {
-	int alpha, beta, gamma, delta, eta;
+	uint32_t alpha, beta, gamma, delta, eta;
 	in >> alpha >> beta >> gamma >> delta >> eta;
 	s.rs.resize(alpha);
 	s.cs.resize(beta);
 	s.ps.resize(gamma);
 	s.ds.resize(delta);
 	s.qs.resize(eta);
-	for (int i = 0; i < s.rs.size(); ++i) {
+	for (size_t i = 0; i < s.rs.size(); ++i) {
 		in >> s.rs.at(i);
 	}
-	for (int i = 0; i < s.cs.size(); ++i) {
+	for (size_t i = 0; i < s.cs.size(); ++i) {
 		in >> s.cs.at(i);
 	}
-	for (int i = 0; i < s.ps.size(); ++i) {
+	for (size_t i = 0; i < s.ps.size(); ++i) {
 		in >> s.ps.at(i);
 	}
-	for (int i = 0; i < s.ds.size(); ++i) {
+	for (size_t i = 0; i < s.ds.size(); ++i) {
 		in >> s.ds.at(i);
 	}
-	for (int i = 0; i < s.qs.size(); ++i) {
+	for (size_t i = 0; i < s.qs.size(); ++i) {
 		in >> s.qs.at(i);
 	}
 	return in;
