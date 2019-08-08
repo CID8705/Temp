@@ -54,6 +54,11 @@ std::istream &operator>>(std::istream &in, Q &q) {
 	in >> q.type >> q.x >> q.y;
 	return in;
 }
+class Info {
+public:
+	std::string id;
+	int dist;
+};
 class Search {
 private:
 	std::map<std::pair<std::string, std::string>, int> dist;
@@ -86,9 +91,9 @@ public:
 				return c_in.r_out == c_out.r_in ? true : false;
 			});
 			if (itr != cs_out.cend()) {
-				const std::string id = itr->r_in.substr(0, itr->r_in.size() - 2);
+				const std::string tmp = itr->r_in.substr(0, itr->r_in.size() - 2);
 				return std::find_if(this->rs.cbegin(), this->rs.cend(), [&](const R &r) {
-					return r.id == id;
+					return r.id == tmp;
 				})->length;
 			}
 		}
@@ -118,12 +123,98 @@ public:
 				}
 			}
 		}
-		for (const auto &m : this->dist) {
-			std::cout << m.first.first << "," << m.first.second << " = " << m.second << std::endl;
+	}
+	std::vector<Info> get_nearest(const std::string &id, const int &flag) {
+		std::vector<Info> nearest;
+		if (id.front() == 'D') {
+			const std::vector<D>::const_iterator x = find_if(this->ds.cbegin(), this->ds.cend(), [&](const D &d) {
+				return d.id == id ? true : false;
+			});
+			const std::vector<C>::const_iterator c_in = find_if(cs.cbegin(), cs.cend(), [&](const C &c) {
+				return c.r_in.substr(0, c.r_in.size() - 2) == x->r ? true : false;
+			});
+			const std::vector<C>::const_iterator c_out = find_if(cs.cbegin(), cs.cend(), [&](const C &c) {
+				return c.r_out.substr(0, c.r_out.size() - 2) == x->r && c.id != c_in->id ? true : false;
+			});
+			Info info;
+			info.id = c_in->id;
+			if (c_in->r_in.substr(c_in->r_in.size() - 2) == "SE") {
+				std::string tmp = c_in->r_in.substr(0, c_in->r_in.size() - 2);
+				info.dist = find_if(rs.cbegin(), rs.cend(), [&](const R &r) {
+					return r.id == tmp ? true : false;
+				})->length - x->dist;
+			}
+			else {
+				info.dist = x->dist;
+			}
+			nearest.emplace_back(info);
+			info.id = c_out->id;
+			if (c_out->r_out.substr(c_out->r_out.size() - 2) == "SE") {
+				info.dist = x->dist;
+			}
+			else {
+				std::string tmp = c_out->r_out.substr(0, c_out->r_out.size() - 2);
+				info.dist = find_if(rs.cbegin(), rs.cend(), [&](const R &r) {
+					return r.id == tmp ? true : false;
+				})->length - x->dist;
+			}
+			nearest.emplace_back(info);
 		}
+		else {
+			const std::vector<P>::const_iterator x = find_if(this->ps.cbegin(), this->ps.cend(), [&](const P &p) {
+				return p.id == id ? true : false;
+			});
+			if (flag <= 0) {
+				Info info;
+				const std::vector<C>::const_iterator c_in = find_if(cs.cbegin(), cs.cend(), [&](const C &c) {
+					return c.r_in == x->r + x->id.substr(x->id.size() - 2) ? true : false;
+				});
+				info.id = c_in->id;
+				if (c_in->r_in.substr(c_in->r_in.size() - 2) == "SE") {
+					std::string tmp = c_in->r_in.substr(0, c_in->r_in.size() - 2);
+					info.dist = find_if(rs.cbegin(), rs.cend(), [&](const R &r) {
+						return r.id == tmp ? true : false;
+					})->length - x->dist;
+				}
+				else {
+					info.dist = x->dist;
+				}
+				nearest.emplace_back(info);
+			}
+			if (flag >= 0) {
+				Info info;
+				const std::vector<C>::const_iterator c_out = find_if(cs.cbegin(), cs.cend(), [&](const C &c) {
+					return c.r_out == x->r + x->id.substr(x->id.size() - 2) ? true : false;
+				});
+				info.id = c_out->id;
+				if (c_out->r_out.substr(c_out->r_out.size() - 2) == "SE") {
+					info.dist = x->dist;
+				}
+				else {
+					std::string tmp = c_out->r_out.substr(0, c_out->r_out.size() - 2);
+					info.dist = find_if(rs.cbegin(), rs.cend(), [&](const R &r) {
+						return r.id == tmp ? true : false;
+					})->length - x->dist;
+				}
+				nearest.emplace_back(info);
+			}
+		}
+		return nearest;
 	}
 	int search(const Q &q) {
-		return 0;
+		int min = INT_MAX;
+		const std::vector<Info> ss = this->get_nearest(q.x, q.type ? 0 : -1);
+		const std::vector<Info> es = this->get_nearest(q.y, q.type ? 0 : 1);
+		for (const Info &s : ss) {
+			for (const Info &e : es) {
+				int tmp = s.dist + this->dist.at(std::make_pair(s.id, e.id)) + e.dist;
+				std::cout << s.id << " + " << this->dist.at(std::make_pair(s.id, e.id)) << " + " << e.id << std::endl;
+				if (tmp < min) {
+					min = tmp;
+				}
+			}
+		}
+		return min < INT_MAX ? min : -1;
 	}
 };
 std::istream &operator>>(std::istream &in, Search &s) {
