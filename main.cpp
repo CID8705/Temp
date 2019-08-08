@@ -98,11 +98,25 @@ public:
 		const std::vector<std::string> all = get_all(); 
 		for (int i = 0; i < all.size(); ++i) {
 			for (int j = 0; j < all.size(); ++j) {
-				dist.emplace(std::make_pair(all.at(i), all.at(j)), INT_MAX);
+				if (i == j) {
+					dist.emplace(std::make_pair(all.at(i), all.at(j)), 0);
+				}
+				else {
+					std::pair<std::string, std::string> key = std::make_pair(all.at(i), all.at(j));
+					dist.emplace(key, this->get_length(key));
+				}
 			}
 		}
-		for (std::map<std::pair<std::string, std::string>, int>::iterator itr = this->dist.begin(); itr != this->dist.end(); ++itr) {
-			itr->second = this->get_length(itr->first);
+		for(int k = 0; k < all.size(); ++k) {
+			for(int i = 0; i < all.size(); ++i) {
+				for(int j = 0; j < all.size(); ++j) {
+					int dist_ik = dist.at(std::make_pair(all.at(i), all.at(k)));
+					int dist_kj = dist.at(std::make_pair(all.at(k), all.at(j)));
+					if (dist_ik < INT_MAX && dist_kj < INT_MAX) {
+						dist.at(std::make_pair(all.at(i), all.at(j))) = std::min(dist.at(std::make_pair(all.at(i), all.at(j))), dist_ik + dist_kj);
+					}
+				}
+			}
 		}
 		for (const auto &m : this->dist) {
 			std::cout << m.first.first << "," << m.first.second << " = " << m.second << std::endl;
